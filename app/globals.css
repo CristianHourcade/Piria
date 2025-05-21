@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 174 100% 41%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 65% 16%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Azul muy oscuro, casi negro, para el fondo principal - similar al botón de cerrar sesión */
+    --background: 210 65% 4%;
+    --foreground: 210 20% 98%;
+
+    /* Azul oscuro para las tarjetas y elementos de UI */
+    --card: 210 65% 6%;
+    --card-foreground: 210 20% 98%;
+
+    --popover: 210 65% 6%;
+    --popover-foreground: 210 20% 98%;
+
+    --primary: 174 100% 41%;
+    --primary-foreground: 210 40% 98%;
+
+    /* Azul oscuro para elementos secundarios */
+    --secondary: 210 65% 10%;
+    --secondary-foreground: 210 40% 98%;
+
+    /* Azul oscuro para elementos atenuados */
+    --muted: 210 65% 8%;
+    --muted-foreground: 210 20% 70%;
+
+    --accent: 210 65% 8%;
+    --accent-foreground: 210 20% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+
+    /* Bordes más oscuros */
+    --border: 210 65% 12%;
+    --input: 210 65% 12%;
+    --ring: 210 65% 20%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Estilos específicos para el modo oscuro */
+.dark body {
+  background-color: hsl(210, 65%, 4%); /* Azul muy oscuro, casi negro - similar al botón de cerrar sesión */
+}
+
+.dark .bg-white,
+.dark .bg-background,
+.dark [class*="bg-white"] {
+  background-color: hsl(210, 65%, 6%) !important; /* Azul oscuro para elementos de UI */
+}
+
+.dark .bg-gray-50,
+.dark .bg-gray-100,
+.dark .bg-gray-200 {
+  background-color: hsl(210, 65%, 8%) !important; /* Azul oscuro para fondos secundarios */
+}
+
+.dark .border,
+.dark [class*="border"] {
+  border-color: hsl(210, 65%, 12%) !important; /* Bordes más oscuros */
+}
+
+/* Corrección específica para los títulos de las páginas en modo oscuro */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark .text-secondary,
+.dark [class*="text-secondary"],
+.dark .text-foreground {
+  color: hsl(210, 20%, 98%) !important; /* Texto blanco para títulos */
+}
+
+/* Estilos para mejorar la visibilidad de los textos en modo oscuro */
+.dark .text-gray-500,
+.dark .text-gray-600,
+.dark .text-gray-700 {
+  color: hsl(210, 20%, 70%) !important; /* Texto secundario más claro para mejor contraste */
+}
+
+.dark .text-gray-800,
+.dark .text-gray-900,
+.dark .text-black {
+  color: hsl(210, 20%, 98%) !important; /* Texto principal más claro */
+}
+
+/* Estilos para botones en modo oscuro */
+.dark .btn,
+.dark button:not([class*="bg-"]) {
+  background-color: hsl(210, 65%, 10%);
+  color: hsl(210, 20%, 98%);
+  border-color: hsl(210, 65%, 15%);
+}
+
+.dark .btn:hover,
+.dark button:not([class*="bg-"]):hover {
+  background-color: hsl(210, 65%, 12%);
+}
+
+/* Estilos para inputs en modo oscuro */
+.dark input,
+.dark select,
+.dark textarea {
+  background-color: hsl(210, 65%, 8%);
+  border-color: hsl(210, 65%, 15%);
+  color: hsl(210, 20%, 98%);
+}
+
+/* Estilos para tablas en modo oscuro */
+.dark table {
+  background-color: hsl(210, 65%, 6%);
+}
+
+.dark thead,
+.dark th {
+  background-color: hsl(210, 65%, 8%);
+}
+
+.dark tr:hover {
+  background-color: hsl(210, 65%, 10%) !important;
+}
+
+/* Estilos para diálogos y modales en modo oscuro */
+.dark [role="dialog"],
+.dark .modal {
+  background-color: hsl(210, 65%, 6%);
+  border-color: hsl(210, 65%, 12%);
+}
+
+/* Estilos para el sidebar en modo oscuro */
+.dark .sidebar,
+.dark [class*="sidebar"] {
+  background-color: hsl(210, 65%, 4%); /* Azul muy oscuro para el sidebar */
+}
+
+/* Estilos para las tarjetas en modo oscuro */
+.dark .card,
+.dark [class*="card"] {
+  background-color: hsl(210, 65%, 6%);
+  border-color: hsl(210, 65%, 12%);
+}
+
+/* Estilos personalizados para el dashboard */
+.dashboard-chart-container {
+  height: 300px;
+  position: relative;
+}
+
+.dashboard-chart-bar {
+  transition: height 0.3s ease;
+}
