@@ -22,6 +22,7 @@ import {
   Bell,
   CheckSquare,
   Mail,
+  Accessibility,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -63,9 +64,8 @@ export default function Sidebar() {
     { name: "Tareas", href: "/admin/tareas", icon: CheckSquare },
     { name: "Calendario", href: "/admin/calendario", icon: Calendar },
     { name: "Gastos", href: "/admin/gastos", icon: DollarSign },
-    { name: "Reportes", href: "/admin/reportes", icon: BarChart2 },
-    { name: "Gestión de Tareas", href: "/admin/gestion-de-tareas", icon: ClipboardList },
-    { name: "Configuración", href: "/admin/configuracion", icon: Settings },
+    { name: "Cuentas", href: "/admin/cuentas", icon: Accessibility },
+    { name: "Ingresos", href: "/admin/ingresos", icon: Accessibility },
   ]
 
   const colaboradorLinks = [

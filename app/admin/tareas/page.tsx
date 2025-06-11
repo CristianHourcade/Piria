@@ -40,6 +40,8 @@ import { fetchEmployees } from "@/services/employees"
 import { Employee } from "@/types/employee"
 import { fetchClients } from "@/services/clients"
 import TaskForm from "@/components/TaskForm";
+import { fetchProjects } from "@/services/projects"
+import { Project } from "@/types/project"
 
 
 // Lista de servicios para filtrar
@@ -118,6 +120,13 @@ export default function AdminTareasPage() {
     loadTasks();
   }, []);
   const [collaborators, setCollaborators] = useState<Employee[]>([]);
+  const [projects, setProjects] = useState<Project[]>([])
+
+  useEffect(() => {
+    fetchProjects().then((data) => {
+      setProjects(data)
+    })
+  }, [])
 
   useEffect(() => {
     fetchEmployees().then(setCollaborators);
@@ -207,6 +216,7 @@ export default function AdminTareasPage() {
         setEndDate(now)
     }
   }
+  const [taskToDelete, setTaskToDelete] = useState<any>(null);
 
   // Filtrar tareas según filtros activos
   const filteredTasks = tasks.filter((task) => {
@@ -299,6 +309,10 @@ export default function AdminTareasPage() {
     return collaborators.find(col => col.id == id)?.name || "Desconocido"
   }
 
+  const getProjectName = (id: number) => {
+    return (projects?.find(project => project.id === id)?.client + " | " + projects?.find(project => project.id === id)?.service) || "Desconocido";
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -356,15 +370,6 @@ export default function AdminTareasPage() {
             {dateRangeText && <span className="text-sm text-muted-foreground hidden md:inline">{dateRangeText}</span>}
           </div>
           {/* Botón de filtros avanzados */}
-          <Button variant="outline" onClick={() => setIsFilterOpen(true)}>
-            <Filter className="h-4 w-4 mr-2" />
-            Filtros
-            {Object.values(filters).some((filter) => filter !== "") && (
-              <Badge className="ml-2 bg-primary text-white">
-                {Object.values(filters).filter((f) => f !== "").length}
-              </Badge>
-            )}
-          </Button>
           <Button onClick={() => setIsTaskFormOpen(true)}>
             Agregar Tarea
           </Button>
@@ -592,6 +597,7 @@ export default function AdminTareasPage() {
                 <TableRow>
                   <TableHead>Tarea</TableHead>
                   <TableHead>Cliente</TableHead>
+                  <TableHead>Proyecto</TableHead>
                   <TableHead>Responsable</TableHead>
                   <TableHead>Fecha Límite</TableHead>
                   <TableHead>Prioridad</TableHead>
@@ -615,9 +621,10 @@ export default function AdminTareasPage() {
                       <TableRow key={task.id}>
                         <TableCell>
                           <div className="font-medium">{task.title}</div>
-                          <div className="text-xs text-muted-foreground">{task.project}</div>
+                          <div>{getProjectName(task.project_id)}</div>
                         </TableCell>
                         <TableCell>{getClientName(task.client_id)}</TableCell>
+                        <TableCell>{getProjectName(task.project_id)}</TableCell>
 
                         <TableCell>
                           <div className="flex items-center gap-2">
@@ -648,10 +655,23 @@ export default function AdminTareasPage() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Button variant="outline" size="sm" onClick={() => setSelectedTask(task)}>
+                          <Button variant="outline" size="sm" onClick={() => {
+                            setSelectedTask(task);
+                            setIsTaskFormOpen(true)
+                          }}>
                             <Eye className="h-4 w-4 mr-1" />
                             Ver
                           </Button>
+                          <Button
+                            variant="destructive"
+                            className="w-full mt-4"
+                            onClick={() => {
+                              setTaskToDelete(task)
+                            }}
+                          >
+                            Eliminar Tarea
+                          </Button>
+
                         </TableCell>
                       </TableRow>
                     )
@@ -728,11 +748,24 @@ export default function AdminTareasPage() {
                               variant="outline"
                               size="sm"
                               className="w-full"
-                              onClick={() => setSelectedTask(task)}
+                              onClick={() => {
+                                setSelectedTask(task);
+                                setIsTaskFormOpen(true)
+                              }}
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               Ver Detalles
                             </Button>
+                            <Button
+                              variant="destructive"
+                              className="w-full mt-4"
+                              onClick={() => {
+                                setTaskToDelete(task)
+                              }}
+                            >
+                              Eliminar Tarea
+                            </Button>
+
                           </div>
                         </div>
                       </CardContent>
@@ -745,111 +778,151 @@ export default function AdminTareasPage() {
         </CardContent>
       </Card>
 
-      {selectedTask && (
-        <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>{selectedTask.title}</DialogTitle>
-              <DialogDescription>Detalles de la tarea</DialogDescription>
-            </DialogHeader>
+      {
+        selectedTask && (
+          <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+            <DialogContent className="sm:max-w-[600px]">
+              <DialogHeader>
+                <DialogTitle>{selectedTask.title}</DialogTitle>
+                <DialogDescription>Detalles de la tarea</DialogDescription>
+              </DialogHeader>
 
-            <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium">Cliente</h4>
-                  <p className="text-sm">{selectedTask.client}</p>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium">Proyecto</h4>
-                  <p className="text-sm">{selectedTask.project}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium">Responsable</h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Avatar className="h-6 w-6 text-xs">
-                      <AvatarFallback className="bg-primary text-primary-foreground">
-                        {selectedTask.assigneeInitial}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm">{selectedTask.assignee}</span>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium">Cliente</h4>
+                    <p className="text-sm">{selectedTask.client}</p>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium">Proyecto</h4>
+                    <p className="text-sm">{getProjectName(selectedTask.project_id)}</p>
                   </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-medium">Servicio</h4>
-                  <p className="text-sm">{selectedTask.service}</p>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <h4 className="text-sm font-medium">Fecha Límite</h4>
-                  <div
-                    className={`flex items-center text-sm ${isTaskOverdue(selectedTask.dueDate) ? "text-red-600" : ""}`}
-                  >
-                    <CalendarIcon className="mr-1 h-4 w-4" />
-                    <span>{new Date(selectedTask.dueDate).toLocaleDateString()}</span>
-                    {isTaskOverdue(selectedTask.dueDate) && <AlertTriangle className="ml-1 h-4 w-4" />}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium">Responsable</h4>
+                    <div className="flex items-center gap-2 mt-1">
+                      <Avatar className="h-6 w-6 text-xs">
+                        <AvatarFallback className="bg-primary text-primary-foreground">
+                          {selectedTask.assigneeInitial}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-sm">{selectedTask.assignee}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium">Servicio</h4>
+                    <p className="text-sm">{selectedTask.service}</p>
                   </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-medium">Prioridad</h4>
-                  <Badge className={getPriorityColor(selectedTask.priority)}>{selectedTask.priority}</Badge>
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium">Estado</h4>
-                  <Badge className={getStatusInfo(selectedTask.status).color}>
-                    <span className="flex items-center">
-                      {getStatusInfo(selectedTask.status).icon}
-                      <span>{selectedTask.status}</span>
-                    </span>
-                  </Badge>
-                </div>
-              </div>
 
-              <div>
-                <h4 className="text-sm font-medium">Descripción</h4>
-                <p className="text-sm mt-1">{selectedTask.description}</p>
-              </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <h4 className="text-sm font-medium">Fecha Límite</h4>
+                    <div
+                      className={`flex items-center text-sm ${isTaskOverdue(selectedTask.dueDate) ? "text-red-600" : ""}`}
+                    >
+                      <CalendarIcon className="mr-1 h-4 w-4" />
+                      <span>{new Date(selectedTask.dueDate).toLocaleDateString()}</span>
+                      {isTaskOverdue(selectedTask.dueDate) && <AlertTriangle className="ml-1 h-4 w-4" />}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium">Prioridad</h4>
+                    <Badge className={getPriorityColor(selectedTask.priority)}>{selectedTask.priority}</Badge>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium">Estado</h4>
+                    <Badge className={getStatusInfo(selectedTask.status).color}>
+                      <span className="flex items-center">
+                        {getStatusInfo(selectedTask.status).icon}
+                        <span>{selectedTask.status}</span>
+                      </span>
+                    </Badge>
+                  </div>
+                </div>
 
-              <div>
-                <h4 className="text-sm font-medium">Comentarios</h4>
-                {selectedTask.comments?.length === 0 ? (
-                  <p className="text-sm text-muted-foreground mt-1">No hay comentarios</p>
-                ) : (
-                  <div className="space-y-3 mt-2">
-                    {selectedTask?.comments?.map((comment: any, index: number) => (
-                      <div key={index} className="bg-muted p-3 rounded-md">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm font-medium">{comment.author}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(comment.date).toLocaleDateString()}
-                          </span>
+                <div>
+                  <h4 className="text-sm font-medium">Descripción</h4>
+                  <p className="text-sm mt-1">{selectedTask.description}</p>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-medium">Comentarios</h4>
+                  {selectedTask.comments?.length === 0 ? (
+                    <p className="text-sm text-muted-foreground mt-1">No hay comentarios</p>
+                  ) : (
+                    <div className="space-y-3 mt-2">
+                      {selectedTask?.comments?.map((comment: any, index: number) => (
+                        <div key={index} className="bg-muted p-3 rounded-md">
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-medium">{comment.author}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(comment.date).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-sm mt-1">{comment.text}</p>
                         </div>
-                        <p className="text-sm mt-1">{comment.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
 
-              <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t">
-                <div>Creada: {new Date(selectedTask.created).toLocaleDateString()}</div>
-                <div>Última actualización: {new Date(selectedTask.lastUpdated).toLocaleDateString()}</div>
+                <div className="flex justify-between text-xs text-muted-foreground pt-2 border-t">
+                  <div>Creada: {new Date(selectedTask.created).toLocaleDateString()}</div>
+                  <div>Última actualización: {new Date(selectedTask.lastUpdated).toLocaleDateString()}</div>
+                </div>
               </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
+            </DialogContent>
+          </Dialog>
+        )
+      }
+
       <TaskForm
         isOpen={isTaskFormOpen}
-        onClose={() => setIsTaskFormOpen(false)}
-        onSubmit={handleCreateTask}
+        onClose={() => {
+          setIsTaskFormOpen(false)
+          setSelectedTask(null)
+        }}
+        onSubmit={(taskData) => {
+          if (taskData.id) {
+            handleUpdateTask(taskData.id, taskData)
+          } else {
+            handleCreateTask(taskData)
+          }
+        }}
         collaborators={collaborators}
         clients={clients}
+        projects={projects}
+        taskToEdit={selectedTask}
       />
-    </div>
+      <Dialog open={!!taskToDelete} onOpenChange={(open) => !open && setTaskToDelete(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar tarea?</DialogTitle>
+            <DialogDescription>
+              Esta acción no se puede deshacer. ¿Estás seguro de que querés eliminar la tarea "{taskToDelete?.title}"?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-4">
+            <Button variant="outline" onClick={() => setTaskToDelete(null)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                await handleDeleteTask(taskToDelete.id)
+                setTaskToDelete(null)
+                setSelectedTask(null)
+              }}
+            >
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+    </div >
   )
 }

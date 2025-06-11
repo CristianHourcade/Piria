@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -14,7 +14,146 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format, addYears, isToday, differenceInDays, isBefore } from "date-fns"
 import { es } from "date-fns/locale"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 
+export function getDateRange(
+  period: string,
+  customRange: { from: Date; to: Date } | null = null
+): { start: Date; end: Date } {
+  const now = new Date()
+
+  switch (period) {
+    case "month":
+      return {
+        start: new Date(now.getFullYear(), now.getMonth(), 1),
+        end: new Date(now.getFullYear(), now.getMonth() + 1, 0),
+      }
+    case "quarter": {
+      const currentQuarter = Math.floor(now.getMonth() / 3)
+      const start = new Date(now.getFullYear(), currentQuarter * 3, 1)
+      const end = new Date(now.getFullYear(), currentQuarter * 3 + 3, 0)
+      return { start, end }
+    }
+    case "year":
+      return {
+        start: new Date(now.getFullYear(), 0, 1),
+        end: new Date(now.getFullYear(), 11, 31),
+      }
+    case "custom":
+      if (customRange?.from && customRange?.to) {
+        return { start: customRange.from, end: customRange.to }
+      }
+      return { start: now, end: now }
+    default:
+      return { start: now, end: now }
+  }
+}
+
+export async function fetchIncomeByAccount(
+  period: string,
+  customRange: { from: Date; to: Date } | null = null
+) {
+  const { start, end } = getDateRange(period, customRange)
+
+  // Traer todas las cuentas
+  const { data: accounts, error: accountError } = await supabase
+    .from("accounts")
+    .select("id, name")
+
+  if (accountError) {
+    console.error("Error al traer cuentas:", accountError)
+    return []
+  }
+
+  // Traer todos los ingresos del período
+  const { data: incomes, error: incomeError } = await supabase
+    .from("incomes")
+    .select("amount, account_id")
+    .gte("date", start.toISOString())
+    .lte("date", end.toISOString())
+
+  if (incomeError) {
+    console.error("Error al traer ingresos:", incomeError)
+    return []
+  }
+
+  // Agrupar ingresos por cuenta
+  const totals: Record<string, number> = {}
+  incomes.forEach((item) => {
+    totals[item.account_id] = (totals[item.account_id] || 0) + item.amount
+  })
+
+  const totalAmount = Object.values(totals).reduce((acc, val) => acc + val, 0)
+
+  // Generar resumen con todas las cuentas
+  return accounts.map((account) => {
+    const amount = totals[account.id] || 0
+    return {
+      method: account.name,
+      amount,
+      percentage: totalAmount ? Math.round((amount / totalAmount) * 100) : 0,
+      trend: "+0%", // Opcional: lógica futura
+    }
+  })
+}
+
+export function getDateRangeFromPeriod(period: string) {
+  const today = new Date()
+  const start = new Date()
+  const end = new Date()
+
+  switch (period) {
+    case "month":
+      start.setDate(1)
+      break
+    case "quarter":
+      start.setMonth(today.getMonth() - 2)
+      start.setDate(1)
+      break
+    case "year":
+      start.setMonth(0)
+      start.setDate(1)
+      break
+    case "custom":
+    default:
+      return null
+  }
+
+  return { from: start.toISOString(), to: end.toISOString() }
+}
+
+export async function fetchIncomeAndExpenses(period: string, dateRange: { from: Date; to: Date } | null) {
+  let from: string, to: string
+
+  if (period === "custom" && dateRange) {
+    from = dateRange.from.toISOString().split("T")[0]
+    to = dateRange.to.toISOString().split("T")[0]
+  } else {
+    const range = getDateRangeFromPeriod(period)
+    if (!range) return { incomes: [], expenses: [] }
+    from = range.from
+    to = range.to
+  }
+
+  const [incomeRes, expenseRes] = await Promise.all([
+    supabase
+      .from("incomes")
+      .select("*")
+      .gte("date", from)
+      .lte("date", to),
+
+    supabase
+      .from("expenses")
+      .select("*")
+      .gte("date", from)
+      .lte("date", to),
+  ])
+
+  return {
+    incomes: incomeRes.data || [],
+    expenses: expenseRes.data || [],
+  }
+}
 // Agregar datos de ejemplo para colaboradores con fechas de nacimiento
 const STAFF = [
   {
@@ -102,12 +241,44 @@ const getUpcomingBirthdays = (people, daysAhead = 30) => {
 }
 
 export default function AdminDashboard() {
+  const [incomes, setIncomes] = useState<any[]>([])
+  const [expenses, setExpenses] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [accountSummary, setAccountSummary] = useState<any[]>([])
+  const [activeProjects, setActiveProjects] = useState(0)
+
   const [period, setPeriod] = useState("month")
   const [activeTab, setActiveTab] = useState("bars")
   const [dateRange, setDateRange] = useState({
     from: new Date(new Date().setDate(new Date().getDate() - 30)),
     to: new Date(),
   })
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true)
+      const { incomes, expenses } = await fetchIncomeAndExpenses(period, period === "custom" ? dateRange : null)
+      const accountData = await fetchIncomeByAccount(period, period === "custom" ? dateRange : null)
+      setAccountSummary(accountData)
+
+      setIncomes(incomes)
+      setExpenses(expenses)
+      setIsLoading(false)
+      const { data: projects, error: projectError } = await supabase
+        .from("project")
+        .select("id")
+        .eq("status", "En curso")
+
+      if (!projectError && projects) {
+        setActiveProjects(projects.length)
+      }
+
+    }
+
+    fetchData()
+  }, [period, dateRange])
+  const totalIncome = incomes.reduce((sum, item) => sum + item.amount, 0)
+  const totalExpense = expenses.reduce((sum, item) => sum + item.amount, 0)
+  const balance = totalIncome - totalExpense
 
   const upcomingStaffBirthdays = getUpcomingBirthdays(STAFF)
   const upcomingClientBirthdays = getUpcomingBirthdays(CLIENTS)
@@ -246,146 +417,33 @@ export default function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard
           title="Ingreso Total"
-          value="$120,000"
+          value={`$${totalIncome.toLocaleString("es-AR")}`}
           subtitle="Ingresos acumulados"
           icon={<DollarSign className="h-4 w-4 text-primary" />}
           color="text-primary"
         />
         <MetricCard
           title="Egreso Total"
-          value="$45,000"
+          value={`$${totalExpense.toLocaleString("es-AR")}`}
           subtitle="Gastos acumulados"
           icon={<CreditCard className="h-4 w-4 text-primary" />}
           color="text-primary"
         />
         <MetricCard
           title="Saldo en Caja"
-          value="$75,000"
+          value={`$${balance.toLocaleString("es-AR")}`}
           subtitle="Balance actual"
           icon={<DollarSign className="h-4 w-4 text-primary" />}
           color="text-primary"
         />
         <MetricCard
-          title="Ingreso Mensual Activo"
-          value="$15,000"
-          subtitle="Ingresos recurrentes"
-          icon={<DollarSign className="h-4 w-4 text-primary" />}
+          title="Proyectos activos"
+          value={activeProjects.toString()}
+          subtitle="Proyectos en curso"
+          icon={<Gift className="h-4 w-4 text-primary" />}
           color="text-primary"
         />
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2">
-          <Card className="border-primary/20 dark:border-gray-700">
-            <CardHeader className="pb-2">
-              <div className="flex flex-col space-y-1.5">
-                <CardTitle className="text-secondary dark:text-gray-200">Resumen Financiero</CardTitle>
-                <p className="text-sm text-muted-foreground">
-                  Visualización de ingresos, egresos, caja y mensualidad activa
-                </p>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-4">
-                <Tabs value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="bg-gray-100 dark:bg-gray-800 w-auto inline-flex">
-                    <TabsTrigger value="bars" className="data-[state=active]:bg-primary data-[state=active]:text-white">
-                      Gráfico de Barras
-                    </TabsTrigger>
-                    <TabsTrigger value="pie" className="data-[state=active]:bg-primary data-[state=active]:text-white">
-                      Gráfico de Torta
-                    </TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-
-              <div className="h-[350px] w-full">
-                {activeTab === "bars" ? (
-                  <BarChart data={chartData} />
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-muted-foreground">Gráfico de torta (visualización no disponible)</p>
-                  </div>
-                )}
-              </div>
-
-              <div className="grid grid-cols-6 gap-2 mt-4">
-                {chartData.months.map((month) => (
-                  <div key={month} className="text-center text-sm font-medium">
-                    {month}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div>
-          <Card className="border-primary/20 dark:border-gray-700 h-full">
-            <CardHeader className="pb-2 flex flex-row items-center justify-between">
-              <CardTitle className="text-secondary dark:text-gray-200">Actividad Reciente</CardTitle>
-              <Button variant="link" size="sm" className="text-primary" onClick={() => router.push("/admin/actividad")}>
-                Ver todas
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="all">
-                <TabsList className="grid grid-cols-4 mb-4">
-                  <TabsTrigger value="all" className="text-xs">
-                    Todas
-                  </TabsTrigger>
-                  <TabsTrigger value="clients" className="text-xs">
-                    Clientes
-                  </TabsTrigger>
-                  <TabsTrigger value="tasks" className="text-xs">
-                    Tareas
-                  </TabsTrigger>
-                  <TabsTrigger value="comments" className="text-xs">
-                    Comentarios
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="all" className="m-0">
-                  <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2">
-                    {recentActivity.map((activity) => (
-                      <ActivityItem key={activity.id} activity={activity} />
-                    ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="clients" className="m-0">
-                  <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2">
-                    {recentActivity
-                      .filter((activity) => activity.type === "client")
-                      .map((activity) => (
-                        <ActivityItem key={activity.id} activity={activity} />
-                      ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="tasks" className="m-0">
-                  <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2">
-                    {recentActivity
-                      .filter((activity) => activity.type === "task" || activity.type === "status")
-                      .map((activity) => (
-                        <ActivityItem key={activity.id} activity={activity} />
-                      ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="comments" className="m-0">
-                  <div className="space-y-4 max-h-[280px] overflow-y-auto pr-2">
-                    {recentActivity
-                      .filter((activity) => activity.type === "comment")
-                      .map((activity) => (
-                        <ActivityItem key={activity.id} activity={activity} />
-                      ))}
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
       </div>
 
       {/* Nueva sección: Resumen por Método de Pago */}
@@ -401,7 +459,7 @@ export default function AdminDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-4">
-            {paymentMethods.map((method) => (
+            {accountSummary.map((method) => (
               <Card key={method.method} className="bg-gray-50 dark:bg-gray-800 border-0">
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start mb-2">
@@ -427,75 +485,6 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-2 mt-6">
-        {/* Cumpleaños de Colaboradores */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Próximos Cumpleaños - Colaboradores</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {upcomingStaffBirthdays.length > 0 ? (
-              <div className="space-y-4">
-                {upcomingStaffBirthdays.map((staff) => (
-                  <div key={staff.id} className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-full ${staff.isBirthdayToday ? "bg-pink-100" : "bg-gray-100"}`}>
-                      <Gift className={`h-5 w-5 ${staff.isBirthdayToday ? "text-pink-500" : "text-gray-500"}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{staff.name}</p>
-                      <p className="text-sm text-muted-foreground">{staff.position}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-medium ${staff.isBirthdayToday ? "text-pink-500" : ""}`}>
-                        {staff.isBirthdayToday ? "Hoy" : `En ${staff.daysUntil} días`}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(staff.nextBirthday, "d 'de' MMMM", { locale: es })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">No hay cumpleaños próximos</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Cumpleaños de Clientes */}
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Próximos Cumpleaños - Clientes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {upcomingClientBirthdays.length > 0 ? (
-              <div className="space-y-4">
-                {upcomingClientBirthdays.map((client) => (
-                  <div key={client.id} className="flex items-center space-x-3">
-                    <div className={`p-2 rounded-full ${client.isBirthdayToday ? "bg-pink-100" : "bg-gray-100"}`}>
-                      <Gift className={`h-5 w-5 ${client.isBirthdayToday ? "text-pink-500" : "text-gray-500"}`} />
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-medium">{client.name}</p>
-                      <p className="text-sm text-muted-foreground">{client.company}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className={`font-medium ${client.isBirthdayToday ? "text-pink-500" : ""}`}>
-                        {client.isBirthdayToday ? "Hoy" : `En ${client.daysUntil} días`}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {format(client.nextBirthday, "d 'de' MMMM", { locale: es })}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-center py-4">No hay cumpleaños próximos</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }

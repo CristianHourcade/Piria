@@ -30,7 +30,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-
+import { useEffect } from "react"
+import { supabase } from "@/lib/supabase"
 // Mock data for expenses
 const EXPENSES = [
   {
@@ -91,14 +92,32 @@ const STAFF = [
 ]
 
 export default function GastosPage() {
-  const [expenses, setExpenses] = useState(EXPENSES)
   const [selectedPeriod, setSelectedPeriod] = useState("Este mes")
   const [selectedCategory, setSelectedCategory] = useState("Todas")
   const [isAddExpenseOpen, setIsAddExpenseOpen] = useState(false)
   const [editingExpense, setEditingExpense] = useState<any>(null)
   const [expenseToDelete, setExpenseToDelete] = useState<number | null>(null)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [expenses, setExpenses] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [accounts, setAccounts] = useState<{ id: string; name: string }[]>([])
 
+  useEffect(() => {
+    fetchExpenses()
+  }, [])
+
+  const fetchExpenses = async () => {
+    setIsLoading(true)
+    const { data, error } = await supabase
+      .from("expenses")
+      .select("*, accounts(name)") // 👈 también trae nombre de cuenta
+      .order("date", { ascending: false })
+
+    if (!error) setExpenses(data)
+    fetchAccounts() // 👈 también traemos cuentas
+
+    setIsLoading(false)
+  }
   // Filter expenses based on selected category
   const filteredExpenses =
     selectedCategory === "Todas" ? expenses : expenses.filter((expense) => expense.category === selectedCategory)
@@ -118,28 +137,68 @@ export default function GastosPage() {
     categoryPercentages[category] = Math.round((amount / totalExpenses) * 100)
   })
 
-  const handleAddExpense = (newExpense: any) => {
-    setExpenses([...expenses, { ...newExpense, id: expenses.length + 1 }])
+  const handleAddExpense = async (newExpense: any) => {
+    const { error } = await supabase.from("expenses").insert([newExpense])
+    if (error) {
+      console.error("Error al guardar gasto:", error)
+      return
+    }
+
+    await fetchExpenses()
     setIsAddExpenseOpen(false)
   }
+  const fetchAccounts = async () => {
+    const { data, error } = await supabase.from("accounts").select("id, name")
+    if (!error && data) setAccounts(data)
+  }
 
-  const handleEditExpense = (updatedExpense: any) => {
-    setExpenses(expenses.map((expense) => (expense.id === updatedExpense.id ? updatedExpense : expense)))
+
+  const handleEditExpense = async (updatedExpense: any) => {
+    const { error } = await supabase
+      .from("expenses")
+      .update({
+        description: updatedExpense.description,
+        category: updatedExpense.category,
+        amount: updatedExpense.amount,
+        date: updatedExpense.date,
+        responsible: updatedExpense.responsible,
+        account_id: updatedExpense.account_id,
+      })
+      .eq("id", updatedExpense.id)
+
+    if (error) {
+      console.error("Error al editar gasto:", error)
+      return
+    }
+
+    await fetchExpenses()
     setEditingExpense(null)
   }
+
 
   const handleDeleteExpense = (id: number) => {
     setExpenseToDelete(id)
     setIsDeleteDialogOpen(true)
   }
 
-  const confirmDeleteExpense = () => {
-    if (expenseToDelete) {
-      setExpenses(expenses.filter((expense) => expense.id !== expenseToDelete))
-      setExpenseToDelete(null)
-      setIsDeleteDialogOpen(false)
+  const confirmDeleteExpense = async () => {
+    if (!expenseToDelete) return
+
+    const { error } = await supabase
+      .from("expenses")
+      .delete()
+      .eq("id", expenseToDelete)
+
+    if (error) {
+      console.error("Error al eliminar gasto:", error)
+      return
     }
+
+    await fetchExpenses()
+    setExpenseToDelete(null)
+    setIsDeleteDialogOpen(false)
   }
+
 
   const cancelDeleteExpense = () => {
     setExpenseToDelete(null)
@@ -243,145 +302,11 @@ export default function GastosPage() {
                 onCancel={() => setIsAddExpenseOpen(false)}
                 categories={CATEGORIES.filter((c) => c !== "Todas")}
                 staff={STAFF}
+                accounts={accounts} // 👈 asumimos que ya las tenés disponibles
               />
             </DialogContent>
           </Dialog>
         </div>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Resumen de Gastos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative h-60 w-full">
-              {/* Pie chart visualization */}
-              <div className="flex justify-center">
-                <div className="relative w-48 h-48">
-                  <svg viewBox="0 0 100 100" className="w-full h-full">
-                    {/* Colored pie segments */}
-                    <circle cx="50" cy="50" r="40" fill="white" />
-
-                    {/* Servicios - 44% */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="transparent"
-                      stroke="#10b981"
-                      strokeWidth="20"
-                      strokeDasharray={`${0.44 * 251.2} ${251.2 - 0.44 * 251.2}`}
-                      strokeDashoffset="0"
-                      transform="rotate(-90 50 50)"
-                    />
-
-                    {/* Sueldos - 25% */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="transparent"
-                      stroke="#0f172a"
-                      strokeWidth="20"
-                      strokeDasharray={`${0.25 * 251.2} ${251.2 - 0.25 * 251.2}`}
-                      strokeDashoffset={`${-(0.44 * 251.2)}`}
-                      transform="rotate(-90 50 50)"
-                    />
-
-                    {/* Software - 8% */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="transparent"
-                      stroke="#6ee7b7"
-                      strokeWidth="20"
-                      strokeDasharray={`${0.08 * 251.2} ${251.2 - 0.08 * 251.2}`}
-                      strokeDashoffset={`${-((0.44 + 0.25) * 251.2)}`}
-                      transform="rotate(-90 50 50)"
-                    />
-
-                    {/* Impuestos - 19% */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="transparent"
-                      stroke="#2563eb"
-                      strokeWidth="20"
-                      strokeDasharray={`${0.19 * 251.2} ${251.2 - 0.19 * 251.2}`}
-                      strokeDashoffset={`${-((0.44 + 0.25 + 0.08) * 251.2)}`}
-                      transform="rotate(-90 50 50)"
-                    />
-
-                    {/* Otros - 3% */}
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      fill="transparent"
-                      stroke="#38bdf8"
-                      strokeWidth="20"
-                      strokeDasharray={`${0.03 * 251.2} ${251.2 - 0.03 * 251.2}`}
-                      strokeDashoffset={`${-((0.44 + 0.25 + 0.08 + 0.19) * 251.2)}`}
-                      transform="rotate(-90 50 50)"
-                    />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Legend with percentages */}
-              <div className="flex flex-wrap justify-center gap-4 mt-4">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-                  <span className="text-sm">Servicios: 44%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-slate-900"></div>
-                  <span className="text-sm">Sueldos: 25%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-emerald-300"></div>
-                  <span className="text-sm">Software: 8%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-blue-600"></div>
-                  <span className="text-sm">Impuestos: 19%</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded-full bg-sky-400"></div>
-                  <span className="text-sm">Otros: 3%</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-medium">Desglose por Categoría</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {Object.entries(expensesByCategory).map(([category, amount]) => (
-                <div key={category} className="flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded-full ${getCategoryDotColor(category)}`}></div>
-                    <span>{category}</span>
-                  </div>
-                  <span className="font-medium">$ {amount.toLocaleString()},00</span>
-                </div>
-              ))}
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center font-bold">
-                  <span>Total</span>
-                  <span>$ {totalExpenses.toLocaleString()},00</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       <div>
@@ -392,37 +317,46 @@ export default function GastosPage() {
               <TableHead>Descripción</TableHead>
               <TableHead>Monto</TableHead>
               <TableHead>Fecha</TableHead>
-              <TableHead>Administrador</TableHead>
+              <TableHead>Cuenta</TableHead>
+
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredExpenses.map((expense) => (
-              <TableRow key={expense.id}>
-                <TableCell>
-                  <Badge className={`${getCategoryColor(expense.category)}`}>{expense.category}</Badge>
-                </TableCell>
-                <TableCell>{expense.description}</TableCell>
-                <TableCell className="font-medium">$ {expense.amount.toLocaleString()},00</TableCell>
-                <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
-                <TableCell>{expense.responsible}</TableCell>
-                <TableCell className="text-right">
-                  <div className="flex justify-end space-x-2">
-                    <Button variant="ghost" size="icon" onClick={() => setEditingExpense(expense)}>
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteExpense(expense.id)}
-                      className="hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-300"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center text-muted-foreground">
+                  Cargando gastos...
                 </TableCell>
               </TableRow>
-            ))}
+            ) : (
+              filteredExpenses.map((expense) => (
+                <TableRow key={expense.id}>
+                  <TableCell>
+                    <Badge className={`${getCategoryColor(expense.category)}`}>{expense.category}</Badge>
+                  </TableCell>
+                  <TableCell>{expense.description}</TableCell>
+                  <TableCell className="font-medium">$ {expense.amount.toLocaleString()},00</TableCell>
+                  <TableCell>{new Date(expense.date).toLocaleDateString()}</TableCell>
+                  <TableCell>{expense.accounts?.name || "-"}</TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => setEditingExpense(expense)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDeleteExpense(expense.id)}
+                        className="hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-300"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
           </TableBody>
         </Table>
       </div>
@@ -436,6 +370,7 @@ export default function GastosPage() {
               onCancel={() => setEditingExpense(null)}
               categories={CATEGORIES.filter((c) => c !== "Todas")}
               staff={STAFF}
+              accounts={accounts}
             />
           </DialogContent>
         </Dialog>
@@ -463,22 +398,26 @@ export default function GastosPage() {
 }
 
 interface ExpenseFormProps {
-  expense?: any
-  onSubmit: (expense: any) => void
-  onCancel: () => void
-  categories: string[]
-  staff: { id: number; name: string }[]
+  expense?: any;
+  onSubmit: (expense: any) => void;
+  onCancel: () => void;
+  categories: string[];
+  staff: { id: number; name: string }[];
+  accounts: { id: string; name: string }[]; // 👈 nueva prop
 }
 
-function ExpenseForm({ expense, onSubmit, onCancel, categories, staff }: ExpenseFormProps) {
+
+function ExpenseForm({ expense, accounts, onSubmit, onCancel, categories, staff }: ExpenseFormProps) {
   const [formData, setFormData] = useState({
-    id: expense?.id || 0,
+    id: expense?.id || undefined,
     description: expense?.description || "",
     category: expense?.category || "",
     amount: expense?.amount || "",
     date: expense?.date || new Date().toISOString().split("T")[0],
     responsible: expense?.responsible || "",
-  })
+    account_id: expense?.account_id || "", // 👈 nuevo
+  });
+
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target
@@ -491,11 +430,20 @@ function ExpenseForm({ expense, onSubmit, onCancel, categories, staff }: Expense
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!formData.account_id) {
+      alert("Por favor, seleccioná una cuenta antes de guardar.")
+      return
+    }
+
+    const { id, ...rest } = formData
     onSubmit({
-      ...formData,
+      ...rest,
       amount: Number(formData.amount),
     })
+
   }
+
 
   return (
     <form onSubmit={handleSubmit}>
@@ -503,6 +451,24 @@ function ExpenseForm({ expense, onSubmit, onCancel, categories, staff }: Expense
         <DialogTitle>{expense ? "Editar Gasto" : "Agregar Gasto"}</DialogTitle>
         <DialogDescription>Complete los datos del gasto. Haga clic en guardar cuando termine.</DialogDescription>
       </DialogHeader>
+      <div className="space-y-2">
+        <Label htmlFor="account_id">Cuenta</Label>
+        <Select
+          value={formData.account_id}
+          onValueChange={(value) => setFormData({ ...formData, account_id: value })}
+        >
+          <SelectTrigger id="account_id">
+            <SelectValue placeholder="Seleccionar cuenta" />
+          </SelectTrigger>
+          <SelectContent>
+            {accounts.map((account) => (
+              <SelectItem key={account.id} value={account.id}>
+                {account.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="grid gap-4 py-4">
         <div className="space-y-2">
@@ -536,21 +502,6 @@ function ExpenseForm({ expense, onSubmit, onCancel, categories, staff }: Expense
           <div className="space-y-2">
             <Label htmlFor="date">Fecha</Label>
             <Input id="date" name="date" type="date" value={formData.date} onChange={handleChange} required />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="responsible">Administrador</Label>
-            <Select value={formData.responsible} onValueChange={(value) => handleSelectChange("responsible", value)}>
-              <SelectTrigger id="responsible">
-                <SelectValue placeholder="Seleccionar administrador" />
-              </SelectTrigger>
-              <SelectContent>
-                {staff.map((person) => (
-                  <SelectItem key={person.id} value={person.name}>
-                    {person.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </div>
       </div>
