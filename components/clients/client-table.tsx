@@ -42,8 +42,6 @@ export function ClientTable({
             <TableHead>Empresa</TableHead>
             <TableHead>Email</TableHead>
             <TableHead>Estado</TableHead>
-            <TableHead>Total</TableHead>
-            <TableHead>Pago</TableHead>
             <TableHead>Acciones</TableHead>
           </TableRow>
         </TableHeader>
@@ -57,10 +55,6 @@ export function ClientTable({
                 <Badge variant={client.status === "Activo" ? "default" : "destructive"}>
                   {client.status}
                 </Badge>
-              </TableCell>
-              <TableCell>${client.total?.toLocaleString("es-AR")}</TableCell>
-              <TableCell>
-                <Badge variant="outline">{client.paymentStatus}</Badge>
               </TableCell>
               <TableCell className="flex gap-2">
                 <Button variant="outline" size="icon" onClick={() => onEditClient(client)}>

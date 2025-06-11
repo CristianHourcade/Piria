@@ -75,24 +75,8 @@ export function ClientForm({ client, onSubmit, onCancel }: ClientFormProps) {
       <div className="grid gap-4">
         <h2 className="text-lg font-semibold text-gray-700 dark:text-white">Información de Facturación</h2>
         <div className="grid md:grid-cols-2 gap-4">
-          <div><Label>Día de Pago</Label><Input name="paymentDay" value={formData.paymentDay} onChange={handleChange} /></div>
           <div><Label>Condición Fiscal</Label><Input name="condicionFiscal" value={formData.condicionFiscal} onChange={handleChange} /></div>
           <div><Label>CUIL</Label><Input name="cuil" value={formData.cuil} onChange={handleChange} /></div>
-          <div><Label>Billing Cycle</Label><Input name="billingCycle" value={formData.billingCycle} onChange={handleChange} /></div>
-          <div><Label>Payment Method</Label><Input name="paymentMethod" value={formData.paymentMethod} onChange={handleChange} /></div>
-          <div>
-            <Label>Estado de Pago</Label>
-            <select
-              name="paymentStatus"
-              value={formData.paymentStatus}
-              onChange={handleChange}
-              className="border rounded px-3 py-2 w-full"
-            >
-              <option value="Pendiente">Pendiente</option>
-              <option value="Emitida">Emitida</option>
-              <option value="Pagada">Pagada</option>
-            </select>
-          </div>          <div><Label>Renewal Type</Label><Input name="renewalType" value={formData.renewalType} onChange={handleChange} /></div>
         </div>
       </div>
 

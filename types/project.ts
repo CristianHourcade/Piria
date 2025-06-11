@@ -18,6 +18,7 @@ export interface Project {
     }[];
     budget: number;
     cost: number;
+    price: number;
     created_at: string;
     updated_at: string;
 }

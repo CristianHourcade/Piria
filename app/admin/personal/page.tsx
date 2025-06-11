@@ -21,7 +21,8 @@ export default function PersonalPage() {
     department: "",
     position: "",
     hire_date: "",
-    notes: ""
+    notes: "",
+    CBU: ""
   });
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -40,19 +41,19 @@ export default function PersonalPage() {
   const handleSubmit = async () => {
     if (editingId !== null) {
       const cleanedData = {
-      ...formData,
-      hire_date: formData.hire_date || null
-    };
-    const updated = await updateEmployee(editingId, cleanedData);
+        ...formData,
+        hire_date: formData.hire_date || null
+      };
+      const updated = await updateEmployee(editingId, cleanedData);
       if (updated) {
         setEmployees(employees.map(emp => emp.id === editingId ? updated : emp));
       }
     } else {
       const cleanedData = {
-      ...formData,
-      hire_date: formData.hire_date || null
-    };
-    const created = await createEmployee(cleanedData);
+        ...formData,
+        hire_date: formData.hire_date || null
+      };
+      const created = await createEmployee(cleanedData);
       if (created) {
         setEmployees([created, ...employees]);
       }
@@ -68,7 +69,8 @@ export default function PersonalPage() {
       department: employee.department || "",
       position: employee.position || "",
       hire_date: employee.hire_date || "",
-      notes: employee.notes || ""
+      notes: employee.notes || "",
+      CBU: employee.CBU || ""
     });
     setEditingId(employee.id);
     setIsDialogOpen(true);
@@ -91,7 +93,8 @@ export default function PersonalPage() {
       department: "",
       position: "",
       hire_date: "",
-      notes: ""
+      notes: "",
+      CBU:""
     });
   };
 
@@ -110,8 +113,8 @@ export default function PersonalPage() {
             <TableRow>
               <TableHead>Nombre</TableHead>
               <TableHead>Email</TableHead>
-              <TableHead>Departamento</TableHead>
-              <TableHead>Posición</TableHead>
+              <TableHead>Rol</TableHead>
+              <TableHead>CBU</TableHead>
               <TableHead>Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -120,8 +123,8 @@ export default function PersonalPage() {
               <TableRow key={employee.id}>
                 <TableCell>{employee.name}</TableCell>
                 <TableCell>{employee.email}</TableCell>
-                <TableCell>{employee.department}</TableCell>
                 <TableCell>{employee.position}</TableCell>
+                <TableCell>{employee.CBU}</TableCell>
                 <TableCell>
                   <Button onClick={() => handleEdit(employee)}>Editar</Button>
                   <Button onClick={() => handleDelete(employee.id)}>Eliminar</Button>
@@ -151,12 +154,12 @@ export default function PersonalPage() {
               <Input name="phone" value={formData.phone} onChange={handleChange} />
             </div>
             <div>
-              <Label>Departamento</Label>
-              <Input name="department" value={formData.department} onChange={handleChange} />
+              <Label>Rol</Label>
+              <Input name="position" value={formData.position} onChange={handleChange} />
             </div>
             <div>
-              <Label>Posición</Label>
-              <Input name="position" value={formData.position} onChange={handleChange} />
+              <Label>CBU</Label>
+              <Input name="CBU" value={formData.CBU} onChange={handleChange} />
             </div>
             <div>
               <Label>Fecha de Contratación</Label>

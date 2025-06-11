@@ -92,7 +92,7 @@ export default function ClientesPage() {
         variant: "destructive",
       })
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
@@ -156,48 +156,9 @@ export default function ClientesPage() {
         </Dialog>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4">
-        <div className="w-full md:w-1/3">
-          <Label>Estado</Label>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos</SelectItem>
-              <SelectItem value="Activo">Activo</SelectItem>
-              <SelectItem value="Inactivo">Inactivo</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-full md:w-1/3">
-          <Label>Servicio</Label>
-          <Select value={serviceFilter} onValueChange={setServiceFilter}>
-            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos</SelectItem>
-              {SERVICES.map((service) => (
-                <SelectItem key={service} value={service}>{service}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-full md:w-1/3">
-          <Label>Estado de Pago</Label>
-          <Select value={paymentStatusFilter} onValueChange={setPaymentStatusFilter}>
-            <SelectTrigger><SelectValue placeholder="Todos" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Todos">Todos</SelectItem>
-              <SelectItem value="Pendiente">Pendiente</SelectItem>
-              <SelectItem value="Emitida">Emitida</SelectItem>
-              <SelectItem value="Pagada">Pagada</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card><CardContent className="p-6"><div className="text-2xl font-bold">{activeClients}</div><p className="text-sm text-muted-foreground">Clientes Activos</p></CardContent></Card>
         <Card><CardContent className="p-6"><div className="text-2xl font-bold">{inactiveClients}</div><p className="text-sm text-muted-foreground">Clientes Inactivos</p></CardContent></Card>
-        <Card><CardContent className="p-6"><div className="text-2xl font-bold text-[#00D1A1]">$ {monthlyBilling.toLocaleString("es-AR")},00</div><p className="text-sm text-muted-foreground">Facturación Mensual</p></CardContent></Card>
       </div>
 
       <ClientTable

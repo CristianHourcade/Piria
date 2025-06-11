@@ -21,6 +21,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { fetchClients } from "@/services/clients"
+import { fetchEmployees } from "@/services/employees"
 
 // Import components and utilities
 import { StatusChart, ServiceChart, TeamChart } from "@/components/projects/project-charts"
@@ -31,6 +33,8 @@ import { PROJECTS, SERVICES, COLLABORATORS, SERVICE_ROLES } from "@/data/project
 import { useTerminology } from "@/context/terminology-context"
 import { createProject, deleteProject, fetchProjects, updateProject } from "@/services/projects"
 import { Project } from "@/types/project"
+import { Client } from "@/types/client-types"
+import { Employee } from "@/types/employee"
 
 export default function ProyectosPage() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -41,6 +45,23 @@ export default function ProyectosPage() {
       setProjects(data)
       setLoading(false)
     })
+  }, [])
+  const [clients, setClients] = useState<Client[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  useEffect(() => {
+    const loadData = async () => {
+      const [projectsData, clientsData, employeesData] = await Promise.all([
+        fetchProjects(),
+        fetchClients(),
+        fetchEmployees()
+      ])
+      setProjects(projectsData)
+      setClients(clientsData)
+      setEmployees(employeesData)
+      setLoading(false)
+    }
+
+    loadData()
   }, [])
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -147,7 +168,8 @@ export default function ProyectosPage() {
               onSubmit={handleAddProject}
               onCancel={() => setIsAddProjectOpen(false)}
               services={SERVICES}
-              collaborators={COLLABORATORS}
+              collaborators={employees.map((e) => ({ id: String(e.id), name: e.name }))}
+              clients={clients}
               serviceRoles={SERVICE_ROLES}
             />
           </DialogContent>
@@ -349,7 +371,6 @@ export default function ProyectosPage() {
                 <TableHead>{clientTerm}</TableHead>
                 <TableHead>Servicio</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Progreso</TableHead>
                 <TableHead>Responsable</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
@@ -377,7 +398,7 @@ export default function ProyectosPage() {
                       <TableCell>{project.client}</TableCell>
                       <TableCell>
                         <Badge variant="outline" className="bg-primary/10">
-                          {project.service}
+                          {project.service} - ${project.price}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -387,17 +408,6 @@ export default function ProyectosPage() {
                             <span>{project.status}</span>
                           </span>
                         </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <div className="w-full max-w-[100px] h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                            <div
-                              className="h-full bg-primary rounded-full"
-                              style={{ width: `${project.progress}%` }}
-                            ></div>
-                          </div>
-                          <span className="text-xs">{project.progress}%</span>
-                        </div>
                       </TableCell>
                       <TableCell>{project.responsible}</TableCell>
                       <TableCell>
@@ -455,9 +465,11 @@ export default function ProyectosPage() {
               onSubmit={handleEditProject}
               onCancel={() => setEditingProject(null)}
               services={SERVICES}
-              collaborators={COLLABORATORS}
+              collaborators={employees.map((e) => ({ id: String(e.id), name: e.name }))}
+              clients={clients}
               serviceRoles={SERVICE_ROLES}
             />
+
           </DialogContent>
         </Dialog>
       )}
